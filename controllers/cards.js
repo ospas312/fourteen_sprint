@@ -13,15 +13,25 @@ module.exports.createCard = (req, res) => {
     .catch(() => res.status(404).send({ message: 'Card not create' }));
 };
 module.exports.delCardById = (req, res) => {
-  Card.findByIdAndRemove(req.params.id)
+  Card.findById(req.params.id)
     .then((card) => {
-      if (card) {
-        res.send({ data: card });
-      } else {
-        res.status(404).send({ message: 'Not found card id' });
+      if (!card) {
+        return Promise.reject(new Error('Not found card id'));
       }
+      const { owner } = card;
+      return owner;
     })
-    .catch(() => res.status(404).send({ message: 'Card not id' }));
+    .then((owner) => {
+      if (owner.toString() !== req.user._id) {
+        return Promise.reject(new Error('Not enough rights delete this card'));
+      }
+      return Card.findByIdAndRemove(req.params.id)
+        .then((card) => {
+          res.send({ data: card });
+        })
+        .catch(() => Promise.reject(new Error('an error occurred')));
+    })
+    .catch((err) => res.status(404).send({ message: err.message }));
 };
 
 module.exports.addCardLike = (req, res) => {
